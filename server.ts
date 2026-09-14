@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
@@ -392,14 +393,15 @@ Known watchlist titles: ${currentWatchlist.join(", ") || 'None provided'}`;
 });
 
 async function startServer() {
-  // Vite middleware for development
+  const httpServer = http.createServer(app);
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        // Express owns the HTTP server, so Vite cannot manage its HMR socket here.
-        // Disable the client websocket to avoid repeated "closed without opened" errors.
-        hmr: false,
+        hmr: {
+          server: httpServer,
+        },
       },
       appType: "spa",
     });
@@ -412,7 +414,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
