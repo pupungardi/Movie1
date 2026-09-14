@@ -399,9 +399,11 @@ async function startServer() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: {
-          server: httpServer,
-        },
+        // The preview proxy does not forward Vite's upgrade connection.
+        // Disable HMR so the injected client does not retry a socket that
+        // can never open in the embedded preview.
+        hmr: false,
+        watch: null,
       },
       appType: "spa",
     });
