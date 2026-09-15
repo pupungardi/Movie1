@@ -9,7 +9,6 @@ import { SeriesView } from './components/SeriesView';
 import { AccountView } from './components/AccountView';
 import { MediaModal } from './components/MediaModal';
 import { WatchPlayerModal } from './components/WatchPlayerModal';
-import { CineAIModal } from './components/CineAIModal';
 import { SurpriseMeModal } from './components/SurpriseMeModal';
 import { useWatchlist } from './hooks/useWatchlist';
 import { MediaItem, AppTab, UserProfile } from './types';
@@ -32,7 +31,6 @@ export default function App() {
 
   // Aux Modals
   const [isSurpriseMeOpen, setIsSurpriseMeOpen] = useState(false);
-  const [isCineAIOpen, setIsCineAIOpen] = useState(false);
   const [modalInitialTab, setModalInitialTab] = useState<'overview' | 'episodes' | 'review'>('overview');
 
   // TMDB Feed State
@@ -245,7 +243,6 @@ export default function App() {
             onToggleWatchlist={toggleWatchlist}
             onToggleFavorite={toggleFavorite}
             onNavigateTab={setActiveTab}
-            onOpenCineAI={() => setIsCineAIOpen(true)}
             onOpenSurpriseMe={() => setIsSurpriseMeOpen(true)}
           />
         )}
@@ -273,7 +270,6 @@ export default function App() {
             isFavorite={isFavorite}
             onToggleWatchlist={toggleWatchlist}
             onToggleFavorite={toggleFavorite}
-            onOpenCineAI={() => setIsCineAIOpen(true)}
           />
         )}
 
@@ -351,33 +347,6 @@ export default function App() {
         />
       )}
 
-      {/* CineAI Concierge Modal */}
-      {isCineAIOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
-          <div className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl p-4 sm:p-6">
-            <button
-              onClick={() => setIsCineAIOpen(false)}
-              className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
-            >
-              ✕
-            </button>
-            <CineAIModal
-              allMedia={allMedia}
-              onSelectMedia={(m) => {
-                setIsCineAIOpen(false);
-                handleOpenMedia(m, false);
-              }}
-              watchlistTitles={watchlistItems.map((i) => {
-                const matched = allMedia.find((m) => m.id === i.mediaId);
-                return matched?.title || '';
-              }).filter(Boolean)}
-              isSaved={isSaved}
-              onToggleWatchlist={toggleWatchlist}
-            />
-          </div>
-        </div>
-      )}
-
       {/* Surprise Me Reel Spinner Modal */}
       <SurpriseMeModal
         isOpen={isSurpriseMeOpen}
@@ -403,8 +372,6 @@ export default function App() {
           </div>
           <div className="flex items-center gap-4 text-slate-400">
             <span>Logged in as {userProfile.email}</span>
-            <span>•</span>
-            <span>AI Concierge with Gemini</span>
           </div>
         </div>
       </footer>

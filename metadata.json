@@ -1,6 +1,6 @@
 {
   "name": "Movie & TV Series Hub",
-  "description": "Discover, track, and explore trending movies and TV series, manage your personal watchlist, and get smart recommendations.",
+  "description": "Discover, track, and explore trending movies and TV series, and manage your personal watchlist.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

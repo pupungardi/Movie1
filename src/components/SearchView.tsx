@@ -12,7 +12,6 @@ interface SearchViewProps {
   isFavorite: (id: string) => boolean;
   onToggleWatchlist: (id: string) => void;
   onToggleFavorite: (id: string) => void;
-  onOpenCineAI: () => void;
 }
 
 export const SearchView: React.FC<SearchViewProps> = ({
@@ -23,7 +22,6 @@ export const SearchView: React.FC<SearchViewProps> = ({
   isFavorite,
   onToggleWatchlist,
   onToggleFavorite,
-  onOpenCineAI: _onOpenCineAI,
 }) => {
   const [query, setQuery] = useState('');
   const [tmdbResults, setTmdbResults] = useState<MediaItem[] | null>(null);

@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
 import {
   isTmdbConfigured,
   setCustomApiKey,
@@ -23,31 +22,11 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Lazy-initialized GoogleGenAI client
-let aiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI | null {
-  if (!process.env.GEMINI_API_KEY) {
-    return null;
-  }
-  if (!aiClient) {
-    aiClient = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
-  }
-  return aiClient;
-}
-
 // Health check endpoint
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     tmdbConfigured: isTmdbConfigured(),
-    geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     timestamp: new Date().toISOString(),
   });
 });
@@ -340,104 +319,6 @@ app.get("/api/tmdb/tv/:id/season/:seasonNumber", async (req, res) => {
   } catch (error: any) {
     console.error("TMDB season episodes error:", error);
     return res.status(500).json({ error: error?.message || "Failed to fetch season episodes" });
-  }
-});
-
-// AI Recommendation & Mood Matcher endpoint
-app.post("/api/recommendations", async (req, res) => {
-  try {
-    const { prompt, currentWatchlist = [], favoriteGenres = [], mediaType = "all" } = req.body;
-
-    const ai = getGeminiClient();
-
-    if (!ai) {
-      // Fallback if no API key is set
-      return res.json({
-        source: "curated",
-        message: "API key not configured in environment. Using curated recommendations.",
-        recommendations: [
-          {
-            title: "Inception",
-            type: "movie",
-            year: 2010,
-            rating: 8.8,
-            reason: "A mind-bending masterclass in storytelling and visual execution, matching high-stakes suspense.",
-            genres: ["Sci-Fi", "Action", "Thriller"]
-          },
-          {
-            title: "Severance",
-            type: "tv",
-            year: 2022,
-            rating: 8.7,
-            reason: "Exceptional mystery thriller exploring corporate surrealism with sharp pacing and twists.",
-            genres: ["Sci-Fi", "Mystery", "Thriller"]
-          },
-          {
-            title: "Interstellar",
-            type: "movie",
-            year: 2014,
-            rating: 8.7,
-            reason: "An emotional cosmic journey with breathtaking scientific grounding and Hans Zimmer score.",
-            genres: ["Sci-Fi", "Drama", "Adventure"]
-          }
-        ]
-      });
-    }
-
-    const systemPrompt = `You are CineMatch, an expert film and television critic and recommendation engine.
-Provide personalized movie and TV series recommendations based on user prompts, watchlist history, and mood.
-Always return your recommendations as a valid JSON object matching this structure:
-{
-  "summary": "Brief 1-2 sentence tailored overview of the picks",
-  "recommendations": [
-    {
-      "title": "Exact standard Title",
-      "type": "movie" | "tv",
-      "year": 2023,
-      "rating": 8.5,
-      "genres": ["Genre1", "Genre2"],
-      "reason": "Why this specifically matches the user query (1-2 compelling sentences)",
-      "vibe": "e.g., Mind-bending & Gripping or Cozy & Wholesome",
-      "streamingMatch": "e.g., Netflix, HBO Max, Prime Video, or Apple TV+"
-    }
-  ]
-}
-Recommend 4 to 6 standout titles. Prioritize quality and relevance. Do NOT return markdown formatting outside the JSON if responseMimeType is json.`;
-
-    const userPromptText = `User request: "${prompt || 'Suggest top acclaimed must-watch movies and TV series'}"
-Preferred media type: ${mediaType}
-Favorite genres: ${favoriteGenres.join(", ") || 'Various'}
-Known watchlist titles: ${currentWatchlist.join(", ") || 'None provided'}`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: userPromptText,
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json",
-      },
-    });
-
-    const responseText = response.text || "{}";
-    let parsedData;
-    try {
-      parsedData = JSON.parse(responseText);
-    } catch {
-      // Clean possible fences
-      const cleaned = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
-      parsedData = JSON.parse(cleaned);
-    }
-
-    return res.json({
-      source: "gemini",
-      ...parsedData,
-    });
-  } catch (error: any) {
-    console.error("Gemini recommendation error:", error);
-    return res.status(500).json({
-      error: "Failed to generate recommendations",
-      details: error?.message || "Unknown error",
-    });
   }
 });
 

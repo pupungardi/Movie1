@@ -16,7 +16,6 @@ interface HomeViewProps {
   onToggleWatchlist: (id: string) => void;
   onToggleFavorite: (id: string) => void;
   onNavigateTab: (tab: AppTab) => void;
-  onOpenCineAI: () => void;
   onOpenSurpriseMe: () => void;
 }
 
@@ -31,7 +30,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onToggleWatchlist,
   onToggleFavorite,
   onNavigateTab,
-  onOpenCineAI,
   onOpenSurpriseMe,
 }) => {
   // Top 10 sorted by rating & vote weight

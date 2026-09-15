@@ -89,14 +89,3 @@ export interface UserProfile {
   joinedDate: string;
   tier: string;
 }
-
-export interface AIRecommendation {
-  title: string;
-  type: MediaType;
-  year: number;
-  rating: number;
-  genres: string[];
-  reason: string;
-  vibe?: string;
-  streamingMatch?: string;
-}
