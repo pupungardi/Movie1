@@ -19,6 +19,25 @@ export interface TMDBSearchResponse {
 
 const TMDB_LOCAL_STORAGE_KEY = 'tmdb_user_api_key';
 
+async function parseJsonResponse<T>(res: Response): Promise<T> {
+  const contentType = res.headers.get('content-type') || '';
+  const body = await res.text();
+
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      res.ok
+        ? 'Server mengembalikan respons yang tidak valid. Silakan refresh preview.'
+        : `Server API tidak ditemukan (status ${res.status}). Silakan refresh preview.`
+    );
+  }
+
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    throw new Error('Respons server TMDB bukan JSON yang valid. Silakan refresh preview.');
+  }
+}
+
 export function getStoredTmdbKey(): string {
   try {
     return localStorage.getItem(TMDB_LOCAL_STORAGE_KEY) || '';
@@ -51,7 +70,7 @@ export async function checkTmdbConfig(): Promise<{ configured: boolean; maskedKe
   try {
     const res = await fetch('/api/tmdb/config');
     if (!res.ok) return { configured: false };
-    return await res.json();
+    return await parseJsonResponse<{ configured: boolean; maskedKey?: string | null }>(res);
   } catch {
     return { configured: false };
   }
@@ -64,8 +83,7 @@ export async function checkTmdbKeyStatus(apiKey?: string): Promise<{ valid: bool
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey: apiKey || getStoredTmdbKey() || undefined }),
     });
-    const data = await res.json();
-    return data;
+    return await parseJsonResponse<{ valid: boolean; message: string }>(res);
   } catch (err: any) {
     return { valid: false, message: err?.message || 'Gagal menghubungi server' };
   }
@@ -79,7 +97,7 @@ export async function saveTmdbApiKey(apiKey: string): Promise<{ success: boolean
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey: cleanKey }),
     });
-    const data = await res.json();
+    const data = await parseJsonResponse<{ success: boolean; message: string; maskedKey?: string }>(res);
     if (data.success) {
       setStoredTmdbKey(cleanKey);
     }
@@ -95,7 +113,7 @@ export async function clearTmdbApiKey(): Promise<{ success: boolean; message: st
     const res = await fetch('/api/tmdb/clear-key', {
       method: 'POST',
     });
-    return await res.json();
+    return await parseJsonResponse<{ success: boolean; message: string }>(res);
   } catch (err: any) {
     return { success: false, message: err?.message || 'Gagal mereset API Key' };
   }
