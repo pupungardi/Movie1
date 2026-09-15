@@ -1,5 +1,28 @@
 import { MediaItem, MediaType, Season } from '../types';
 
+const TMDB_API_KEY_STORAGE = 'cinehub.tmdb.apiKey';
+
+export function getStoredTmdbApiKey(): string {
+  if (typeof window === 'undefined') return '';
+  return window.localStorage.getItem(TMDB_API_KEY_STORAGE)?.trim() || '';
+}
+
+export function saveStoredTmdbApiKey(apiKey: string): void {
+  if (typeof window === 'undefined') return;
+  const value = apiKey.trim();
+  if (value) window.localStorage.setItem(TMDB_API_KEY_STORAGE, value);
+  else window.localStorage.removeItem(TMDB_API_KEY_STORAGE);
+}
+
+export function clearStoredTmdbApiKey(): void {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(TMDB_API_KEY_STORAGE);
+}
+
+function tmdbHeaders(): HeadersInit {
+  const key = getStoredTmdbApiKey();
+  return key ? { 'X-TMDB-API-Key': key } : {};
+}
+
 export interface TMDBFeedResponse {
   configured: boolean;
   message?: string;
@@ -19,7 +42,7 @@ export interface TMDBSearchResponse {
 
 export async function checkTmdbConfig(): Promise<{ configured: boolean }> {
   try {
-    const res = await fetch('/api/tmdb/config');
+    const res = await fetch('/api/tmdb/config', { headers: tmdbHeaders() });
     if (!res.ok) return { configured: false };
     return await res.json();
   } catch {
@@ -28,7 +51,7 @@ export async function checkTmdbConfig(): Promise<{ configured: boolean }> {
 }
 
 export async function fetchTmdbFeed(): Promise<TMDBFeedResponse> {
-  const res = await fetch('/api/tmdb/feed');
+  const res = await fetch('/api/tmdb/feed', { headers: tmdbHeaders() });
   if (!res.ok) {
     throw new Error(`Failed to fetch TMDB feed (status: ${res.status})`);
   }
@@ -45,7 +68,7 @@ export async function fetchTmdbMovies(params: {
   if (params.genre && params.genre !== 'All') query.set('genre', params.genre);
   if (params.page) query.set('page', String(params.page));
 
-  const res = await fetch(`/api/tmdb/movies?${query.toString()}`);
+  const res = await fetch(`/api/tmdb/movies?${query.toString()}`, { headers: tmdbHeaders() });
   if (!res.ok) throw new Error('Failed to fetch movies from TMDB');
   return res.json();
 }
@@ -60,7 +83,7 @@ export async function fetchTmdbSeries(params: {
   if (params.genre && params.genre !== 'All') query.set('genre', params.genre);
   if (params.page) query.set('page', String(params.page));
 
-  const res = await fetch(`/api/tmdb/series?${query.toString()}`);
+  const res = await fetch(`/api/tmdb/series?${query.toString()}`, { headers: tmdbHeaders() });
   if (!res.ok) throw new Error('Failed to fetch series from TMDB');
   return res.json();
 }
@@ -80,14 +103,14 @@ export async function searchTmdb(
     page: String(page),
   });
 
-  const res = await fetch(`/api/tmdb/search?${searchParams.toString()}`);
+  const res = await fetch(`/api/tmdb/search?${searchParams.toString()}`, { headers: tmdbHeaders() });
   if (!res.ok) throw new Error('Failed to search TMDB');
   return res.json();
 }
 
 export async function fetchTmdbItemDetail(type: MediaType, id: string): Promise<MediaItem> {
   const cleanId = id.replace(/^(m-|tv-)/, '');
-  const res = await fetch(`/api/tmdb/item/${type}/${cleanId}`);
+  const res = await fetch(`/api/tmdb/item/${type}/${cleanId}`, { headers: tmdbHeaders() });
   if (!res.ok) {
     throw new Error(`Failed to fetch details for ${type} ${id}`);
   }
@@ -96,7 +119,7 @@ export async function fetchTmdbItemDetail(type: MediaType, id: string): Promise<
 
 export async function fetchTmdbSeason(tvId: string, seasonNumber: number): Promise<Season> {
   const cleanId = tvId.replace(/^(m-|tv-)/, '');
-  const res = await fetch(`/api/tmdb/tv/${cleanId}/season/${seasonNumber}`);
+  const res = await fetch(`/api/tmdb/tv/${cleanId}/season/${seasonNumber}`, { headers: tmdbHeaders() });
   if (!res.ok) {
     throw new Error(`Failed to fetch season ${seasonNumber} for tv ${tvId}`);
   }
