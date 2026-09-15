@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, X, Film, Tv, SlidersHorizontal, Loader2 } from 'lucide-react';
-import { MediaItem, MediaType } from '../types';
+import { Search, X, Loader2 } from 'lucide-react';
+import { MediaItem } from '../types';
 import { MediaCard } from './MediaCard';
-import { ALL_GENRES } from '../data/mediaData';
 import { searchTmdb } from '../services/tmdb';
 
 interface SearchViewProps {
@@ -24,11 +23,9 @@ export const SearchView: React.FC<SearchViewProps> = ({
   isFavorite,
   onToggleWatchlist,
   onToggleFavorite,
-  onOpenCineAI,
+  onOpenCineAI: _onOpenCineAI,
 }) => {
   const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'movie' | 'tv'>('all');
-  const [selectedGenre, setSelectedGenre] = useState('All');
   const [tmdbResults, setTmdbResults] = useState<MediaItem[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -43,7 +40,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
     setIsSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await searchTmdb(query, typeFilter);
+        const res = await searchTmdb(query, 'all');
         if (res.results && res.results.length > 0) {
           setTmdbResults(res.results);
         } else {
@@ -58,23 +55,16 @@ export const SearchView: React.FC<SearchViewProps> = ({
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [query, typeFilter]);
+  }, [query]);
 
   const searchResults = useMemo(() => {
     // If TMDB search has returned results
     if (query.trim() && tmdbResults !== null) {
-      if (selectedGenre === 'All') return tmdbResults;
-      return tmdbResults.filter((item) => item.genres.includes(selectedGenre));
+      return tmdbResults;
     }
 
     // Default: filter allMedia
     return allMedia.filter((item) => {
-      // Type filter
-      if (typeFilter !== 'all' && item.type !== typeFilter) return false;
-
-      // Genre filter
-      if (selectedGenre !== 'All' && !item.genres.includes(selectedGenre)) return false;
-
       // Query filter
       if (query.trim()) {
         const q = query.toLowerCase().trim();
@@ -90,7 +80,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
 
       return true;
     });
-  }, [allMedia, query, typeFilter, selectedGenre, tmdbResults]);
+  }, [allMedia, query, tmdbResults]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8 pb-20 md:pb-12">
@@ -129,61 +119,6 @@ export const SearchView: React.FC<SearchViewProps> = ({
             ) : null}
           </div>
         </div>
-      </div>
-
-      {/* Filter Tabs Row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-        {/* Type Filter */}
-        <div className="flex items-center gap-1 rounded-xl bg-slate-900 p-1 border border-slate-800 text-xs">
-          <button
-            onClick={() => setTypeFilter('all')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
-              typeFilter === 'all' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400'
-            }`}
-          >
-            All Results
-          </button>
-          <button
-            onClick={() => setTypeFilter('movie')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
-              typeFilter === 'movie' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400'
-            }`}
-          >
-            <Film className="h-3 w-3" />
-            Movies
-          </button>
-          <button
-            onClick={() => setTypeFilter('tv')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
-              typeFilter === 'tv' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400'
-            }`}
-          >
-            <Tv className="h-3 w-3" />
-            Series
-          </button>
-        </div>
-
-        {/* Genre Selector */}
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-slate-400">Genre:</span>
-          <select
-            value={selectedGenre}
-            onChange={(e) => setSelectedGenre(e.target.value)}
-            className="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs text-white border border-slate-800 focus:outline-none cursor-pointer"
-          >
-            <option value="All">All Genres</option>
-            {ALL_GENRES.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Results Counter */}
-        <span className="text-xs text-slate-400 font-medium">
-          Found <strong className="text-white">{searchResults.length}</strong> matching titles
-        </span>
       </div>
 
       {/* Search Results Display */}
