@@ -17,10 +17,16 @@ import {
   LogOut,
   Eye,
   Play,
-  Search
+  Search,
+  EyeOff
 } from 'lucide-react';
 import { UserProfile, WatchlistItem, WatchStatus, MediaItem } from '../types';
-import { fetchTmdbItemDetail } from '../services/tmdb';
+import {
+  fetchTmdbItemDetail,
+  getStoredTmdbApiKey,
+  saveStoredTmdbApiKey,
+  clearStoredTmdbApiKey,
+} from '../services/tmdb';
 
 interface AccountViewProps {
   userProfile: UserProfile;
@@ -61,6 +67,27 @@ export const AccountView: React.FC<AccountViewProps> = ({
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [nameInput, setNameInput] = useState(userProfile.name);
   const [selectedAvatar, setSelectedAvatar] = useState(userProfile.avatarUrl);
+  const [tmdbApiKey, setTmdbApiKey] = useState('');
+  const [showTmdbApiKey, setShowTmdbApiKey] = useState(false);
+  const [tmdbKeySaved, setTmdbKeySaved] = useState(false);
+
+  React.useEffect(() => {
+    const storedKey = getStoredTmdbApiKey();
+    setTmdbApiKey(storedKey);
+  }, []);
+
+  const handleSaveTmdbKey = () => {
+    saveStoredTmdbApiKey(tmdbApiKey);
+    setTmdbApiKey(getStoredTmdbApiKey());
+    setTmdbKeySaved(true);
+    window.setTimeout(() => setTmdbKeySaved(false), 2200);
+  };
+
+  const handleClearTmdbKey = () => {
+    clearStoredTmdbApiKey();
+    setTmdbApiKey('');
+    setTmdbKeySaved(false);
+  };
 
   // Direct Play State
   const [dpType, setDpType] = useState<'movie' | 'tv'>('movie');
@@ -753,6 +780,31 @@ export const AccountView: React.FC<AccountViewProps> = ({
       {/* Subtab 5: Settings & Data Management */}
       {activeTab === 'settings' && (
         <div className="space-y-6 max-w-2xl">
+          <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-purple-400" />
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">TMDB API Key</h3>
+            </div>
+            <p className="text-[11px] text-slate-400">Masukkan API key TMDB milik Anda. Key disimpan hanya di browser ini dan tidak ditampilkan penuh.</p>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showTmdbApiKey ? 'text' : 'password'}
+                  value={tmdbApiKey}
+                  onChange={(event) => setTmdbApiKey(event.target.value)}
+                  placeholder="TMDB API key"
+                  aria-label="TMDB API key"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 pr-10 text-xs text-white outline-none focus:border-purple-500"
+                />
+                <button type="button" onClick={() => setShowTmdbApiKey((visible) => !visible)} aria-label={showTmdbApiKey ? 'Hide TMDB API key' : 'Show TMDB API key'} className="absolute right-2 top-2 text-slate-400 hover:text-white">
+                  {showTmdbApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <button type="button" onClick={handleSaveTmdbKey} className="rounded-xl bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-500">{tmdbKeySaved ? 'Saved' : 'Save'}</button>
+              <button type="button" onClick={handleClearTmdbKey} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800">Clear</button>
+            </div>
+          </div>
+
           <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">
               Data & Storage

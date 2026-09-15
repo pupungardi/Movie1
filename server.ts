@@ -12,6 +12,7 @@ import {
   mapTmdbSeason,
   fetchTmdbSeasonData,
   GENRE_NAME_TO_ID,
+  setTmdbRequestKey,
 } from "./server/tmdb";
 
 dotenv.config();
@@ -20,6 +21,10 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+app.use((req, _res, next) => {
+  setTmdbRequestKey(req.header('X-TMDB-API-Key'));
+  next();
+});
 
 // Lazy-initialized GoogleGenAI client
 let aiClient: GoogleGenAI | null = null;

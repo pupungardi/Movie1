@@ -58,7 +58,14 @@ export interface MappedMediaItem {
   cast: TMDBCastMember[];
 }
 
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+const tmdbRequestKey = new AsyncLocalStorage<string>();
+
+export function setTmdbRequestKey(apiKey: string | undefined): void {
+  if (apiKey) tmdbRequestKey.enterWith(apiKey.trim());
+}
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 const GENRE_MAP: Record<number, string> = {
@@ -112,13 +119,13 @@ export const GENRE_NAME_TO_ID: Record<string, number> = {
   'Western': 37
 };
 
-export function isTmdbConfigured(): boolean {
-  const key = process.env.TMDB_API_KEY;
-  return Boolean(key && key.trim().length > 0);
+export function isTmdbConfigured(apiKey?: string): boolean {
+  const key = (apiKey ?? process.env.TMDB_API_KEY ?? '').trim();
+  return Boolean(key);
 }
 
-function getAuth() {
-  const rawKey = (process.env.TMDB_API_KEY || '').trim();
+function getAuth(apiKey?: string) {
+  const rawKey = (apiKey ?? tmdbRequestKey.getStore() ?? process.env.TMDB_API_KEY ?? '').trim();
   if (!rawKey) return null;
 
   // If provided a v4 Read Access Token (JWT)
@@ -143,8 +150,8 @@ function getAuth() {
   };
 }
 
-export async function fetchTmdb<T = any>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> {
-  const auth = getAuth();
+export async function fetchTmdb<T = any>(endpoint: string, params: Record<string, string | number> = {}, apiKey?: string): Promise<T> {
+  const auth = getAuth(apiKey);
   if (!auth) {
     throw new Error('TMDB_API_KEY is not configured in environment variables');
   }
