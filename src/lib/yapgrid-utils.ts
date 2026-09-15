@@ -1,4 +1,4 @@
-export /**
+/**
  * Membersihkan URL YapGrid mentah dari parameter yang tidak diperlukan (seperti 'spm', 'utm_source')
  * dan hanya mempertahankan parameter yang valid seperti 'sub_url'.
  * 
