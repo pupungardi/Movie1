@@ -64,6 +64,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [nameInput, setNameInput] = useState(userProfile.name);
   const [selectedAvatar, setSelectedAvatar] = useState(userProfile.avatarUrl);
+  const [isTmdbSettingsOpen, setIsTmdbSettingsOpen] = useState(false);
 
   // Direct Play State
   const [dpType, setDpType] = useState<'movie' | 'tv'>('movie');
@@ -407,7 +408,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('settings')}
+          onClick={() => setIsTmdbSettingsOpen(true)}
           className={`flex items-center gap-1.5 pb-2.5 -mb-px border-b-2 transition-all whitespace-nowrap ${
             activeTab === 'settings'
               ? 'border-purple-500 text-white'
@@ -756,9 +757,6 @@ export const AccountView: React.FC<AccountViewProps> = ({
       {/* Subtab 5: Settings & Data Management */}
       {activeTab === 'settings' && (
         <div className="space-y-6 max-w-2xl">
-          {/* TMDB API Key Card - exact replica of user settings */}
-          <TmdbApiKeyCard onKeyUpdated={onKeyUpdated} />
-
           <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">
               Data & Storage
@@ -797,6 +795,11 @@ export const AccountView: React.FC<AccountViewProps> = ({
         </div>
       )}
 
+      <TmdbApiKeyCard
+        isOpen={isTmdbSettingsOpen}
+        onClose={() => setIsTmdbSettingsOpen(false)}
+        onKeyUpdated={onKeyUpdated}
+      />
     </div>
   );
 };
