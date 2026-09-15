@@ -23,6 +23,7 @@ import {
 import { UserProfile, WatchlistItem, WatchStatus, MediaItem } from '../types';
 import {
   fetchTmdbItemDetail,
+  checkTmdbConfig,
   getStoredTmdbApiKey,
   saveStoredTmdbApiKey,
   clearStoredTmdbApiKey,
@@ -40,6 +41,7 @@ interface AccountViewProps {
   onToggleFavorite: (id: string) => void;
   onNavigateToBrowse: () => void;
   onClearLibrary: () => void;
+  onTmdbKeyValidated?: () => void;
 }
 
 const AVATARS = [
@@ -70,6 +72,8 @@ export const AccountView: React.FC<AccountViewProps> = ({
   const [tmdbApiKey, setTmdbApiKey] = useState('');
   const [showTmdbApiKey, setShowTmdbApiKey] = useState(false);
   const [tmdbKeySaved, setTmdbKeySaved] = useState(false);
+  const [tmdbCheckState, setTmdbCheckState] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [tmdbCheckMessage, setTmdbCheckMessage] = useState('');
 
   React.useEffect(() => {
     const storedKey = getStoredTmdbApiKey();
@@ -87,6 +91,26 @@ export const AccountView: React.FC<AccountViewProps> = ({
     clearStoredTmdbApiKey();
     setTmdbApiKey('');
     setTmdbKeySaved(false);
+    setTmdbCheckState('idle');
+    setTmdbCheckMessage('');
+  };
+
+  const handleCheckTmdbKey = async () => {
+    saveStoredTmdbApiKey(tmdbApiKey);
+    const savedKey = getStoredTmdbApiKey();
+    setTmdbApiKey(savedKey);
+    setTmdbCheckState('checking');
+    setTmdbCheckMessage('Memeriksa API key TMDB...');
+
+    const result = await checkTmdbConfig();
+    if (result.configured) {
+      setTmdbCheckState('valid');
+      setTmdbCheckMessage('API key TMDB valid dan berhasil terhubung.');
+      onTmdbKeyValidated?.();
+    } else {
+      setTmdbCheckState('invalid');
+      setTmdbCheckMessage(result.message || 'API key TMDB tidak valid atau belum disimpan.');
+    }
   };
 
   // Direct Play State
@@ -800,8 +824,10 @@ export const AccountView: React.FC<AccountViewProps> = ({
                   {showTmdbApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <button type="button" onClick={handleSaveTmdbKey} className="rounded-xl bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-500">{tmdbKeySaved ? 'Saved' : 'Save'}</button>
-              <button type="button" onClick={handleClearTmdbKey} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800">Clear</button>
+  <button type="button" onClick={handleSaveTmdbKey} className="rounded-xl bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-500">{tmdbKeySaved ? 'Saved' : 'Save'}</button>
+  <button type="button" onClick={handleCheckTmdbKey} disabled={tmdbCheckState === 'checking'} className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:cursor-wait disabled:opacity-60">{tmdbCheckState === 'checking' ? 'Checking...' : 'Cek Status'}</button>
+  <button type="button" onClick={handleClearTmdbKey} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800">Clear</button>
+  {tmdbCheckMessage && <p role="status" className={`col-span-full text-[11px] ${tmdbCheckState === 'valid' ? 'text-emerald-300' : tmdbCheckState === 'invalid' ? 'text-rose-300' : 'text-slate-400'}`}>{tmdbCheckMessage}</p>}
             </div>
           </div>
 
