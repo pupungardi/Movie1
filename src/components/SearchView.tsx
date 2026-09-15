@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, X, Sparkles, Film, Tv, SlidersHorizontal, Loader2 } from 'lucide-react';
+import { Search, X, Film, Tv, SlidersHorizontal, Loader2 } from 'lucide-react';
 import { MediaItem, MediaType } from '../types';
 import { MediaCard } from './MediaCard';
 import { ALL_GENRES } from '../data/mediaData';
@@ -187,29 +187,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
       </div>
 
       {/* Search Results Display */}
-      {searchResults.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-800 p-12 text-center space-y-4 max-w-md mx-auto">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-slate-500">
-            <Search className="h-6 w-6" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold text-white">
-              No results found for "{query}"
-            </h3>
-            <p className="text-xs text-slate-400">
-              Try checking for spelling errors, using simpler keywords, or asking our AI recommendation concierge.
-            </p>
-          </div>
-
-          <button
-            onClick={onOpenCineAI}
-            className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-purple-500 transition-all"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>Ask CineAI Concierge</span>
-          </button>
-        </div>
-      ) : (
+      {searchResults.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4">
           {searchResults.map((media) => (
             <MediaCard
