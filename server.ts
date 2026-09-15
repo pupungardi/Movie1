@@ -56,16 +56,16 @@ app.get("/api/health", (_req, res) => {
 });
 
 // TMDB Configuration check
-app.get("/api/tmdb/config", (_req, res) => {
+app.get("/api/tmdb/config", (req, res) => {
   res.json({
-    configured: isTmdbConfigured(),
+    configured: isTmdbConfigured(req.header('X-TMDB-API-Key')),
   });
 });
 
 // TMDB Primary Feed: aggregates trending, popular movies, and popular series
-app.get("/api/tmdb/feed", async (_req, res) => {
+app.get("/api/tmdb/feed", async (req, res) => {
   try {
-    if (!isTmdbConfigured()) {
+    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
       return res.json({
         configured: false,
         message: "TMDB_API_KEY is not configured in environment.",
@@ -116,7 +116,7 @@ app.get("/api/tmdb/feed", async (_req, res) => {
   } catch (error: any) {
     console.error("TMDB feed error:", error);
     return res.status(500).json({
-      configured: isTmdbConfigured(),
+      configured: isTmdbConfigured(req.header('X-TMDB-API-Key')),
       error: "Failed to fetch TMDB feed",
       details: error?.message || "Unknown error",
     });
@@ -126,7 +126,7 @@ app.get("/api/tmdb/feed", async (_req, res) => {
 // TMDB Movies listing endpoint (with category and genre support)
 app.get("/api/tmdb/movies", async (req, res) => {
   try {
-    if (!isTmdbConfigured()) {
+    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
       return res.json({ configured: false, results: [], total_pages: 0 });
     }
 
@@ -164,7 +164,7 @@ app.get("/api/tmdb/movies", async (req, res) => {
 // TMDB Series listing endpoint (with category and genre support)
 app.get("/api/tmdb/series", async (req, res) => {
   try {
-    if (!isTmdbConfigured()) {
+    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
       return res.json({ configured: false, results: [], total_pages: 0 });
     }
 
@@ -202,7 +202,7 @@ app.get("/api/tmdb/series", async (req, res) => {
 // TMDB Search endpoint
 app.get("/api/tmdb/search", async (req, res) => {
   try {
-    if (!isTmdbConfigured()) {
+    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
       return res.json({ configured: false, results: [], total_pages: 0 });
     }
 
@@ -238,7 +238,7 @@ app.get("/api/tmdb/search", async (req, res) => {
 // TMDB Single Item Detail with full append_to_response (credits, videos, watch providers, certifications)
 app.get("/api/tmdb/item/:type/:id", async (req, res) => {
   try {
-    if (!isTmdbConfigured()) {
+    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
       return res.status(400).json({ error: "TMDB_API_KEY is not configured" });
     }
 
@@ -283,7 +283,7 @@ app.get("/api/tmdb/item/:type/:id", async (req, res) => {
 // TMDB TV Season Episodes endpoint
 app.get("/api/tmdb/tv/:id/season/:seasonNumber", async (req, res) => {
   try {
-    if (!isTmdbConfigured()) {
+    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
       return res.status(400).json({ error: "TMDB_API_KEY is not configured" });
     }
 

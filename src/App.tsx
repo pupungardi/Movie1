@@ -285,8 +285,9 @@ export default function App() {
             onSetWatchStatus={setWatchStatus}
             onToggleFavorite={toggleFavorite}
             onNavigateToBrowse={() => setActiveTab('HOME')}
-            onClearLibrary={clearLibrary}
-          />
+  onClearLibrary={clearLibrary}
+  onTmdbKeyValidated={loadTmdbCatalog}
+  />
         )}
       </main>
 

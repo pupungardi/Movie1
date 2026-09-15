@@ -40,13 +40,21 @@ export interface TMDBSearchResponse {
   total_pages: number;
 }
 
-export async function checkTmdbConfig(): Promise<{ configured: boolean }> {
+export interface TMDBConfigResponse {
+  configured: boolean;
+  message?: string;
+}
+
+export async function checkTmdbConfig(): Promise<TMDBConfigResponse> {
   try {
     const res = await fetch('/api/tmdb/config', { headers: tmdbHeaders() });
-    if (!res.ok) return { configured: false };
-    return await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { configured: false, message: data.message || 'TMDB tidak dapat dihubungi.' };
+    }
+    return data;
   } catch {
-    return { configured: false };
+    return { configured: false, message: 'Tidak dapat terhubung ke server TMDB.' };
   }
 }
 
