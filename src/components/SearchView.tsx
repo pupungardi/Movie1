@@ -58,27 +58,27 @@ export const SearchView: React.FC<SearchViewProps> = ({
   }, [query]);
 
   const searchResults = useMemo(() => {
+    // If no search query is typed, do not display default cards
+    if (!query.trim()) {
+      return [];
+    }
+
     // If TMDB search has returned results
-    if (query.trim() && tmdbResults !== null) {
+    if (tmdbResults !== null) {
       return tmdbResults;
     }
 
     // Default: filter allMedia
+    const q = query.toLowerCase().trim();
     return allMedia.filter((item) => {
-      // Query filter
-      if (query.trim()) {
-        const q = query.toLowerCase().trim();
-        const inTitle = item.title.toLowerCase().includes(q);
-        const inDirector = item.director.toLowerCase().includes(q);
-        const inCast = item.cast.some((c) => c.name.toLowerCase().includes(q));
-        const inTags = item.tags.some((t) => t.toLowerCase().includes(q));
-        const inGenres = item.genres.some((g) => g.toLowerCase().includes(q));
-        const inOverview = item.overview.toLowerCase().includes(q);
+      const inTitle = item.title.toLowerCase().includes(q);
+      const inDirector = item.director.toLowerCase().includes(q);
+      const inCast = item.cast.some((c) => c.name.toLowerCase().includes(q));
+      const inTags = item.tags.some((t) => t.toLowerCase().includes(q));
+      const inGenres = item.genres.some((g) => g.toLowerCase().includes(q));
+      const inOverview = item.overview.toLowerCase().includes(q);
 
-        return inTitle || inDirector || inCast || inTags || inGenres || inOverview;
-      }
-
-      return true;
+      return inTitle || inDirector || inCast || inTags || inGenres || inOverview;
     });
   }, [allMedia, query, tmdbResults]);
 
