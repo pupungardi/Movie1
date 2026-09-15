@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, X, Film, Tv, SlidersHorizontal, TrendingUp, Loader2 } from 'lucide-react';
+import { Search, X, Film, Tv, Loader2 } from 'lucide-react';
 import { MediaItem, MediaType } from '../types';
 import { MediaCard } from './MediaCard';
 import { ALL_GENRES } from '../data/mediaData';
@@ -15,20 +15,6 @@ interface SearchViewProps {
   onToggleFavorite: (id: string) => void;
   onOpenCineAI: () => void;
 }
-
-const POPULAR_SEARCHES = [
-  'Dune',
-  'Severance',
-  'Christopher Nolan',
-  'Sci-Fi',
-  'Breaking Bad',
-  'Anime',
-  'Mystery',
-  'Denis Villeneuve',
-  'Oppenheimer',
-  'Arcane',
-  'Crime',
-];
 
 export const SearchView: React.FC<SearchViewProps> = ({
   allMedia,
@@ -144,22 +130,6 @@ export const SearchView: React.FC<SearchViewProps> = ({
           </div>
         </div>
 
-        {/* Popular Trending Search Chips */}
-        <div className="flex items-center justify-center gap-1.5 flex-wrap pt-1 text-xs">
-          <span className="text-slate-500 flex items-center gap-1">
-            <TrendingUp className="h-3.5 w-3.5" />
-            Popular:
-          </span>
-          {POPULAR_SEARCHES.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => setQuery(tag)}
-              className="rounded-full bg-slate-900 px-2.5 py-1 text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all"
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Filter Tabs Row */}
