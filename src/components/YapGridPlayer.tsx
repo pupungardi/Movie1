@@ -66,8 +66,12 @@ export const YapGridPlayer: React.FC<YapGridPlayerProps> = ({
     );
   }
 
+  // YapGrid expects the raw numeric TMDB ID, while catalog items may use
+  // an internal `m-` or `tv-` prefix for watchlist key uniqueness.
+  const embedTmdbId = String(tmdbId).trim().replace(/^(m-|tv-)/, '');
+
   // Build the base embed URL depending on media type
-  let embedUrl = `https://yapgrid.com/embed/${type}/${tmdbId}`;
+  let embedUrl = `https://yapgrid.com/embed/${type}/${encodeURIComponent(embedTmdbId)}`;
   
   if (type === 'tv' && season !== undefined && episode !== undefined) {
     embedUrl += `/${season}/${episode}`;
