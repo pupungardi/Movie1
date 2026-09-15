@@ -1,233 +1,132 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import {
-  getStoredTmdbKey,
-  saveTmdbApiKey,
-  checkTmdbKeyStatus,
-  clearTmdbApiKey,
-  checkTmdbConfig
-} from '../services/tmdb';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound, X } from 'lucide-react';
+import { getStoredTmdbKey, removeStoredTmdbKey, setStoredTmdbKey } from '../services/tmdb';
 
 interface TmdbApiKeyCardProps {
+  isOpen: boolean;
+  onClose: () => void;
   onKeyUpdated?: () => void;
-  className?: string;
 }
 
-export const TmdbApiKeyCard: React.FC<TmdbApiKeyCardProps> = ({
-  onKeyUpdated,
-  className = '',
-}) => {
+function maskKey(key: string): string {
+  if (key.length <= 6) return '••••••';
+  return `${key.slice(0, 3)}••••••••••••${key.slice(-3)}`;
+}
+
+export const TmdbApiKeyCard: React.FC<TmdbApiKeyCardProps> = ({ isOpen, onClose, onKeyUpdated }) => {
   const [inputKey, setInputKey] = useState('');
+  const [savedKey, setSavedKey] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [statusFeedback, setStatusFeedback] = useState<{
-    type: 'success' | 'error' | 'info';
-    message: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Load key on mount
   useEffect(() => {
-    const local = getStoredTmdbKey();
-    if (local) {
-      setInputKey(local);
-    } else {
-      checkTmdbConfig().then((cfg) => {
-        if (cfg.configured && cfg.maskedKey) {
-          setInputKey(cfg.maskedKey);
-        }
-      });
-    }
-  }, []);
+    if (!isOpen) return;
+    const key = getStoredTmdbKey();
+    setSavedKey(key);
+    setInputKey(key);
+    setFeedback(null);
+  }, [isOpen]);
 
-  const handleSave = async () => {
-    const trimmed = inputKey.trim();
-    if (!trimmed) {
-      setStatusFeedback({
-        type: 'error',
-        message: 'Masukkan API Key TMDB terlebih dahulu.',
-      });
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const handleSave = () => {
+    const key = inputKey.trim();
+    if (!key) {
+      setFeedback({ type: 'error', message: 'Masukkan TMDB API Key terlebih dahulu.' });
       return;
     }
-
-    setIsLoading(true);
-    setStatusFeedback({
-      type: 'info',
-      message: 'Menyimpan dan memvalidasi ke server TMDB...',
-    });
-
-    try {
-      const res = await saveTmdbApiKey(trimmed);
-      if (res.success) {
-        setStatusFeedback({
-          type: 'success',
-          message: res.message || 'API Key TMDB berhasil disimpan dan aktif!',
-        });
-        if (onKeyUpdated) onKeyUpdated();
-      } else {
-        setStatusFeedback({
-          type: 'error',
-          message: res.message || 'Gagal menyimpan API Key. Periksa kembali kunci Anda.',
-        });
-      }
-    } catch (err: any) {
-      setStatusFeedback({
-        type: 'error',
-        message: err?.message || 'Terjadi kesalahan saat menyimpan key.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    setStoredTmdbKey(key);
+    setSavedKey(key);
+    setInputKey(key);
+    setFeedback({ type: 'success', message: 'TMDB API Key berhasil disimpan di browser ini.' });
+    onKeyUpdated?.();
   };
 
-  const handleCheckStatus = async () => {
-    setIsLoading(true);
-    setStatusFeedback({
-      type: 'info',
-      message: 'Mengecek status koneksi ke TMDB...',
-    });
-
-    try {
-      const trimmed = inputKey.trim();
-      const res = await checkTmdbKeyStatus(trimmed || undefined);
-      if (res.valid) {
-        setStatusFeedback({
-          type: 'success',
-          message: res.message || 'Terhubung! API Key TMDB valid dan dapat digunakan.',
-        });
-        if (onKeyUpdated) onKeyUpdated();
-      } else {
-        setStatusFeedback({
-          type: 'error',
-          message: res.message || 'Kunci TMDB tidak valid atau koneksi gagal.',
-        });
-      }
-    } catch (err: any) {
-      setStatusFeedback({
-        type: 'error',
-        message: err?.message || 'Gagal menghubungi server.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleClear = async () => {
-    setIsLoading(true);
-    try {
-      await clearTmdbApiKey();
-      setInputKey('');
-      setStatusFeedback({
-        type: 'info',
-        message: 'Kunci TMDB berhasil dihapus dari browser.',
-      });
-      if (onKeyUpdated) onKeyUpdated();
-    } catch (err: any) {
-      setStatusFeedback({
-        type: 'error',
-        message: err?.message || 'Gagal menghapus key.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleClear = () => {
+    removeStoredTmdbKey();
+    setSavedKey('');
+    setInputKey('');
+    setFeedback({ type: 'success', message: 'TMDB API Key berhasil dihapus.' });
+    onKeyUpdated?.();
   };
 
   return (
     <div
-      id="tmdb-api-key-card"
-      className={`rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4 shadow-xl ${className}`}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
-      {/* Title with gear icon matching the screenshot */}
-      <div className="flex items-center gap-2">
-        <Settings className="h-5 w-5 text-purple-400 shrink-0" />
-        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-          TMDB API KEY
-        </h3>
-      </div>
-
-      {/* Description text matching the screenshot */}
-      <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-        Masukkan API key TMDB milik Anda. Key disimpan hanya di browser ini dan tidak ditampilkan penuh.
-      </p>
-
-      {/* Form Controls */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
-        <div className="relative flex-1">
-          <input
-            id="tmdb-api-key-input"
-            type={showKey ? 'text' : 'password'}
-            value={inputKey}
-            onChange={(e) => setInputKey(e.target.value)}
-            placeholder="Masukkan API key TMDB..."
-            disabled={isLoading}
-            className="w-full rounded-xl bg-slate-950 px-3.5 py-2.5 pr-10 text-sm text-white border border-slate-800 focus:border-purple-500 focus:outline-none font-mono placeholder:text-slate-600 transition-colors"
-          />
-          <button
-            type="button"
-            id="tmdb-key-toggle-visibility"
-            onClick={() => setShowKey(!showKey)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1 transition-colors"
-            title={showKey ? 'Sembunyikan' : 'Tampilkan'}
-          >
-            {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tmdb-settings-title"
+        className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl shadow-black/50 sm:p-6"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className="rounded-xl bg-purple-500/15 p-2 text-purple-300">
+              <KeyRound className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 id="tmdb-settings-title" className="text-lg font-bold text-white">Pengaturan TMDB API</h2>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">API key disimpan hanya di browser Anda.</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Tutup pengaturan TMDB" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white">
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            id="tmdb-save-key-btn"
-            onClick={handleSave}
-            disabled={isLoading}
-            className="flex-1 sm:flex-initial rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-bold px-4 py-2.5 text-xs transition-all shadow-md shadow-purple-900/30 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-            <span>Save</span>
-          </button>
+        <div className="mt-5 space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/60 px-3.5 py-3">
+            <span className="text-sm font-medium text-slate-300">Status</span>
+            <span className={`inline-flex items-center gap-1.5 text-xs font-bold ${savedKey ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {savedKey ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+              {savedKey ? 'Configured' : 'Not Configured'}
+            </span>
+          </div>
 
-          <button
-            type="button"
-            id="tmdb-check-status-btn"
-            onClick={handleCheckStatus}
-            disabled={isLoading}
-            className="flex-1 sm:flex-initial rounded-xl border border-emerald-500/60 hover:bg-emerald-500/10 active:scale-95 text-emerald-400 font-bold px-4 py-2.5 text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span>Cek Status</span>
-          </button>
+          <label htmlFor="tmdb-api-key-input" className="block text-xs font-semibold uppercase tracking-wider text-slate-400">TMDB API Key</label>
+          <div className="relative">
+            <input
+              id="tmdb-api-key-input"
+              type={showKey ? 'text' : 'password'}
+              value={inputKey}
+              onChange={(event) => setInputKey(event.target.value)}
+              placeholder="Masukkan API key TMDB"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-3 pr-11 font-mono text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-purple-500"
+            />
+            <button type="button" onClick={() => setShowKey((visible) => !visible)} aria-label={showKey ? 'Sembunyikan API key' : 'Tampilkan API key'} className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white">
+              {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
 
-          <button
-            type="button"
-            id="tmdb-clear-key-btn"
-            onClick={handleClear}
-            disabled={isLoading}
-            className="flex-1 sm:flex-initial rounded-xl border border-slate-700 hover:bg-slate-800 active:scale-95 text-slate-300 font-bold px-4 py-2.5 text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span>Clear</span>
-          </button>
-        </div>
-      </div>
+          {savedKey && <p className="font-mono text-xs text-slate-500">Key tersimpan: {maskKey(savedKey)}</p>}
 
-      {/* Feedback Message */}
-      {statusFeedback && (
-        <div
-          id="tmdb-key-feedback"
-          className={`rounded-xl p-3 text-xs flex items-center gap-2 transition-all ${
-            statusFeedback.type === 'success'
-              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
-              : statusFeedback.type === 'error'
-              ? 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
-              : 'bg-slate-800/80 border border-slate-700 text-slate-300'
-          }`}
-        >
-          {statusFeedback.type === 'success' ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-          ) : statusFeedback.type === 'error' ? (
-            <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
-          ) : (
-            <Loader2 className="h-4 w-4 text-purple-400 animate-spin shrink-0" />
+          {feedback && (
+            <div className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs ${feedback.type === 'success' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-rose-500/30 bg-rose-500/10 text-rose-300'}`} role="status">
+              {feedback.type === 'success' ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+              {feedback.message}
+            </div>
           )}
-          <span className="leading-relaxed">{statusFeedback.message}</span>
         </div>
-      )}
+
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          {savedKey && <button type="button" onClick={handleClear} className="rounded-xl border border-rose-500/40 px-4 py-2.5 text-xs font-bold text-rose-300 hover:bg-rose-500/10">Clear Key</button>}
+          <button type="button" onClick={handleSave} className="rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-purple-950/30 hover:bg-purple-500">Validate &amp; Save</button>
+        </div>
+      </section>
     </div>
   );
 };

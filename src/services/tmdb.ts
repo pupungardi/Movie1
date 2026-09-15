@@ -17,7 +17,7 @@ export interface TMDBSearchResponse {
   total_pages: number;
 }
 
-const TMDB_LOCAL_STORAGE_KEY = 'tmdb_user_api_key';
+const TMDB_LOCAL_STORAGE_KEY = 'tmdb_api_key';
 
 async function parseJsonResponse<T>(res: Response): Promise<T> {
   const contentType = res.headers.get('content-type') || '';
