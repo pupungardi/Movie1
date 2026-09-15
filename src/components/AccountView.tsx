@@ -17,17 +17,11 @@ import {
   LogOut,
   Eye,
   Play,
-  Search,
-  EyeOff
+  Search
 } from 'lucide-react';
 import { UserProfile, WatchlistItem, WatchStatus, MediaItem } from '../types';
-import {
-  fetchTmdbItemDetail,
-  checkTmdbConfig,
-  getStoredTmdbApiKey,
-  saveStoredTmdbApiKey,
-  clearStoredTmdbApiKey,
-} from '../services/tmdb';
+import { fetchTmdbItemDetail } from '../services/tmdb';
+import { TmdbApiKeyCard } from './TmdbApiKeyCard';
 
 interface AccountViewProps {
   userProfile: UserProfile;
@@ -41,7 +35,7 @@ interface AccountViewProps {
   onToggleFavorite: (id: string) => void;
   onNavigateToBrowse: () => void;
   onClearLibrary: () => void;
-  onTmdbKeyValidated?: () => void;
+  onKeyUpdated?: () => void;
 }
 
 const AVATARS = [
@@ -64,54 +58,12 @@ export const AccountView: React.FC<AccountViewProps> = ({
   onToggleFavorite,
   onNavigateToBrowse,
   onClearLibrary,
+  onKeyUpdated,
 }) => {
   const [activeTab, setActiveTab] = useState<'library' | 'reviews' | 'progress' | 'direct' | 'settings'>('library');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [nameInput, setNameInput] = useState(userProfile.name);
   const [selectedAvatar, setSelectedAvatar] = useState(userProfile.avatarUrl);
-  const [tmdbApiKey, setTmdbApiKey] = useState('');
-  const [showTmdbApiKey, setShowTmdbApiKey] = useState(false);
-  const [tmdbKeySaved, setTmdbKeySaved] = useState(false);
-  const [tmdbCheckState, setTmdbCheckState] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
-  const [tmdbCheckMessage, setTmdbCheckMessage] = useState('');
-
-  React.useEffect(() => {
-    const storedKey = getStoredTmdbApiKey();
-    setTmdbApiKey(storedKey);
-  }, []);
-
-  const handleSaveTmdbKey = () => {
-    saveStoredTmdbApiKey(tmdbApiKey);
-    setTmdbApiKey(getStoredTmdbApiKey());
-    setTmdbKeySaved(true);
-    window.setTimeout(() => setTmdbKeySaved(false), 2200);
-  };
-
-  const handleClearTmdbKey = () => {
-    clearStoredTmdbApiKey();
-    setTmdbApiKey('');
-    setTmdbKeySaved(false);
-    setTmdbCheckState('idle');
-    setTmdbCheckMessage('');
-  };
-
-  const handleCheckTmdbKey = async () => {
-    saveStoredTmdbApiKey(tmdbApiKey);
-    const savedKey = getStoredTmdbApiKey();
-    setTmdbApiKey(savedKey);
-    setTmdbCheckState('checking');
-    setTmdbCheckMessage('Memeriksa API key TMDB...');
-
-    const result = await checkTmdbConfig();
-    if (result.configured) {
-      setTmdbCheckState('valid');
-      setTmdbCheckMessage('API key TMDB valid dan berhasil terhubung.');
-      onTmdbKeyValidated?.();
-    } else {
-      setTmdbCheckState('invalid');
-      setTmdbCheckMessage(result.message || 'API key TMDB tidak valid atau belum disimpan.');
-    }
-  };
 
   // Direct Play State
   const [dpType, setDpType] = useState<'movie' | 'tv'>('movie');
@@ -804,32 +756,8 @@ export const AccountView: React.FC<AccountViewProps> = ({
       {/* Subtab 5: Settings & Data Management */}
       {activeTab === 'settings' && (
         <div className="space-y-6 max-w-2xl">
-          <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Settings className="h-4 w-4 text-purple-400" />
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">TMDB API Key</h3>
-            </div>
-            <p className="text-[11px] text-slate-400">Masukkan API key TMDB milik Anda. Key disimpan hanya di browser ini dan tidak ditampilkan penuh.</p>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <input
-                  type={showTmdbApiKey ? 'text' : 'password'}
-                  value={tmdbApiKey}
-                  onChange={(event) => setTmdbApiKey(event.target.value)}
-                  placeholder="TMDB API key"
-                  aria-label="TMDB API key"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 pr-10 text-xs text-white outline-none focus:border-purple-500"
-                />
-                <button type="button" onClick={() => setShowTmdbApiKey((visible) => !visible)} aria-label={showTmdbApiKey ? 'Hide TMDB API key' : 'Show TMDB API key'} className="absolute right-2 top-2 text-slate-400 hover:text-white">
-                  {showTmdbApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-  <button type="button" onClick={handleSaveTmdbKey} className="rounded-xl bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-500">{tmdbKeySaved ? 'Saved' : 'Save'}</button>
-  <button type="button" onClick={handleCheckTmdbKey} disabled={tmdbCheckState === 'checking'} className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:cursor-wait disabled:opacity-60">{tmdbCheckState === 'checking' ? 'Checking...' : 'Cek Status'}</button>
-  <button type="button" onClick={handleClearTmdbKey} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800">Clear</button>
-  {tmdbCheckMessage && <p role="status" className={`col-span-full text-[11px] ${tmdbCheckState === 'valid' ? 'text-emerald-300' : tmdbCheckState === 'invalid' ? 'text-rose-300' : 'text-slate-400'}`}>{tmdbCheckMessage}</p>}
-            </div>
-          </div>
+          {/* TMDB API Key Card - exact replica of user settings */}
+          <TmdbApiKeyCard onKeyUpdated={onKeyUpdated} />
 
           <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">

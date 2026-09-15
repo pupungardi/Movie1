@@ -1,28 +1,5 @@
 import { MediaItem, MediaType, Season } from '../types';
 
-const TMDB_API_KEY_STORAGE = 'cinehub.tmdb.apiKey';
-
-export function getStoredTmdbApiKey(): string {
-  if (typeof window === 'undefined') return '';
-  return window.localStorage.getItem(TMDB_API_KEY_STORAGE)?.trim() || '';
-}
-
-export function saveStoredTmdbApiKey(apiKey: string): void {
-  if (typeof window === 'undefined') return;
-  const value = apiKey.trim();
-  if (value) window.localStorage.setItem(TMDB_API_KEY_STORAGE, value);
-  else window.localStorage.removeItem(TMDB_API_KEY_STORAGE);
-}
-
-export function clearStoredTmdbApiKey(): void {
-  if (typeof window !== 'undefined') window.localStorage.removeItem(TMDB_API_KEY_STORAGE);
-}
-
-function tmdbHeaders(): HeadersInit {
-  const key = getStoredTmdbApiKey();
-  return key ? { 'X-TMDB-API-Key': key } : {};
-}
-
 export interface TMDBFeedResponse {
   configured: boolean;
   message?: string;
@@ -40,26 +17,92 @@ export interface TMDBSearchResponse {
   total_pages: number;
 }
 
-export interface TMDBConfigResponse {
-  configured: boolean;
-  message?: string;
+const TMDB_LOCAL_STORAGE_KEY = 'tmdb_user_api_key';
+
+export function getStoredTmdbKey(): string {
+  try {
+    return localStorage.getItem(TMDB_LOCAL_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
 }
 
-export async function checkTmdbConfig(): Promise<TMDBConfigResponse> {
+export function setStoredTmdbKey(key: string): void {
   try {
-    const res = await fetch('/api/tmdb/config', { headers: tmdbHeaders() });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return { configured: false, message: data.message || 'TMDB tidak dapat dihubungi.' };
+    if (key) {
+      localStorage.setItem(TMDB_LOCAL_STORAGE_KEY, key.trim());
+    } else {
+      localStorage.removeItem(TMDB_LOCAL_STORAGE_KEY);
+    }
+  } catch (e) {
+    console.warn('Could not save TMDB key to localStorage:', e);
+  }
+}
+
+export function removeStoredTmdbKey(): void {
+  try {
+    localStorage.removeItem(TMDB_LOCAL_STORAGE_KEY);
+  } catch (e) {
+    console.warn('Could not remove TMDB key from localStorage:', e);
+  }
+}
+
+export async function checkTmdbConfig(): Promise<{ configured: boolean; maskedKey?: string | null }> {
+  try {
+    const res = await fetch('/api/tmdb/config');
+    if (!res.ok) return { configured: false };
+    return await res.json();
+  } catch {
+    return { configured: false };
+  }
+}
+
+export async function checkTmdbKeyStatus(apiKey?: string): Promise<{ valid: boolean; message: string }> {
+  try {
+    const res = await fetch('/api/tmdb/check-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: apiKey || getStoredTmdbKey() || undefined }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (err: any) {
+    return { valid: false, message: err?.message || 'Gagal menghubungi server' };
+  }
+}
+
+export async function saveTmdbApiKey(apiKey: string): Promise<{ success: boolean; message: string; maskedKey?: string }> {
+  try {
+    const cleanKey = apiKey.trim();
+    const res = await fetch('/api/tmdb/save-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: cleanKey }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setStoredTmdbKey(cleanKey);
     }
     return data;
-  } catch {
-    return { configured: false, message: 'Tidak dapat terhubung ke server TMDB.' };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Gagal menghubungi server' };
+  }
+}
+
+export async function clearTmdbApiKey(): Promise<{ success: boolean; message: string }> {
+  try {
+    removeStoredTmdbKey();
+    const res = await fetch('/api/tmdb/clear-key', {
+      method: 'POST',
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Gagal mereset API Key' };
   }
 }
 
 export async function fetchTmdbFeed(): Promise<TMDBFeedResponse> {
-  const res = await fetch('/api/tmdb/feed', { headers: tmdbHeaders() });
+  const res = await fetch('/api/tmdb/feed');
   if (!res.ok) {
     throw new Error(`Failed to fetch TMDB feed (status: ${res.status})`);
   }
@@ -76,7 +119,7 @@ export async function fetchTmdbMovies(params: {
   if (params.genre && params.genre !== 'All') query.set('genre', params.genre);
   if (params.page) query.set('page', String(params.page));
 
-  const res = await fetch(`/api/tmdb/movies?${query.toString()}`, { headers: tmdbHeaders() });
+  const res = await fetch(`/api/tmdb/movies?${query.toString()}`);
   if (!res.ok) throw new Error('Failed to fetch movies from TMDB');
   return res.json();
 }
@@ -91,7 +134,7 @@ export async function fetchTmdbSeries(params: {
   if (params.genre && params.genre !== 'All') query.set('genre', params.genre);
   if (params.page) query.set('page', String(params.page));
 
-  const res = await fetch(`/api/tmdb/series?${query.toString()}`, { headers: tmdbHeaders() });
+  const res = await fetch(`/api/tmdb/series?${query.toString()}`);
   if (!res.ok) throw new Error('Failed to fetch series from TMDB');
   return res.json();
 }
@@ -111,14 +154,14 @@ export async function searchTmdb(
     page: String(page),
   });
 
-  const res = await fetch(`/api/tmdb/search?${searchParams.toString()}`, { headers: tmdbHeaders() });
+  const res = await fetch(`/api/tmdb/search?${searchParams.toString()}`);
   if (!res.ok) throw new Error('Failed to search TMDB');
   return res.json();
 }
 
 export async function fetchTmdbItemDetail(type: MediaType, id: string): Promise<MediaItem> {
   const cleanId = id.replace(/^(m-|tv-)/, '');
-  const res = await fetch(`/api/tmdb/item/${type}/${cleanId}`, { headers: tmdbHeaders() });
+  const res = await fetch(`/api/tmdb/item/${type}/${cleanId}`);
   if (!res.ok) {
     throw new Error(`Failed to fetch details for ${type} ${id}`);
   }
@@ -127,7 +170,7 @@ export async function fetchTmdbItemDetail(type: MediaType, id: string): Promise<
 
 export async function fetchTmdbSeason(tvId: string, seasonNumber: number): Promise<Season> {
   const cleanId = tvId.replace(/^(m-|tv-)/, '');
-  const res = await fetch(`/api/tmdb/tv/${cleanId}/season/${seasonNumber}`, { headers: tmdbHeaders() });
+  const res = await fetch(`/api/tmdb/tv/${cleanId}/season/${seasonNumber}`);
   if (!res.ok) {
     throw new Error(`Failed to fetch season ${seasonNumber} for tv ${tvId}`);
   }

@@ -13,7 +13,7 @@ import { CineAIModal } from './components/CineAIModal';
 import { SurpriseMeModal } from './components/SurpriseMeModal';
 import { useWatchlist } from './hooks/useWatchlist';
 import { MediaItem, AppTab, UserProfile } from './types';
-import { fetchTmdbFeed, fetchTmdbItemDetail } from './services/tmdb';
+import { fetchTmdbFeed, fetchTmdbItemDetail, getStoredTmdbKey, saveTmdbApiKey } from './services/tmdb';
 
 export default function App() {
   // Navigation State: HOME, MOVIE, SEARCH, SERIES, AKUN
@@ -78,6 +78,16 @@ export default function App() {
     setFeedError(null);
 
     try {
+      // If user has stored a custom key locally, sync it to server
+      const storedKey = getStoredTmdbKey();
+      if (storedKey) {
+        try {
+          await saveTmdbApiKey(storedKey);
+        } catch (syncErr) {
+          console.warn('Could not sync stored TMDB key to server:', syncErr);
+        }
+      }
+
       const feed = await fetchTmdbFeed();
       setTmdbConfigured(feed.configured);
 
@@ -200,14 +210,22 @@ export default function App() {
                 <strong>TMDB API Key Diperlukan:</strong> Masukkan <code>TMDB_API_KEY</code> pada pengaturan secrets untuk memuat katalog film, trailer resmi, pemeran, dan serial live langsung dari The Movie Database.
               </span>
             </div>
-            <button
-              onClick={loadTmdbCatalog}
-              disabled={isLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shrink-0 cursor-pointer"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>{isLoading ? 'Menghubungkan...' : 'Cek Status TMDB'}</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setActiveTab('AKUN')}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-all cursor-pointer border border-slate-700"
+              >
+                <span>Pengaturan API Key</span>
+              </button>
+              <button
+                onClick={loadTmdbCatalog}
+                disabled={isLoading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all cursor-pointer"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                <span>{isLoading ? 'Menghubungkan...' : 'Cek Status TMDB'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -285,9 +303,9 @@ export default function App() {
             onSetWatchStatus={setWatchStatus}
             onToggleFavorite={toggleFavorite}
             onNavigateToBrowse={() => setActiveTab('HOME')}
-  onClearLibrary={clearLibrary}
-  onTmdbKeyValidated={loadTmdbCatalog}
-  />
+            onClearLibrary={clearLibrary}
+            onKeyUpdated={loadTmdbCatalog}
+          />
         )}
       </main>
 

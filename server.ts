@@ -1,18 +1,19 @@
 import express from "express";
-import http from "http";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import {
   isTmdbConfigured,
+  setCustomApiKey,
+  validateTmdbKey,
+  getMaskedKey,
   fetchTmdb,
   mapTmdbItemToMediaItem,
   mapTmdbDetailToMediaItem,
   mapTmdbSeason,
   fetchTmdbSeasonData,
   GENRE_NAME_TO_ID,
-  setTmdbRequestKey,
 } from "./server/tmdb";
 
 dotenv.config();
@@ -21,10 +22,6 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-app.use((req, _res, next) => {
-  setTmdbRequestKey(req.header('X-TMDB-API-Key'));
-  next();
-});
 
 // Lazy-initialized GoogleGenAI client
 let aiClient: GoogleGenAI | null = null;
@@ -56,16 +53,63 @@ app.get("/api/health", (_req, res) => {
 });
 
 // TMDB Configuration check
-app.get("/api/tmdb/config", (req, res) => {
+app.get("/api/tmdb/config", (_req, res) => {
   res.json({
-    configured: isTmdbConfigured(req.header('X-TMDB-API-Key')),
+    configured: isTmdbConfigured(),
+    maskedKey: getMaskedKey(),
+  });
+});
+
+// TMDB Key validation check (can test provided key or current active key)
+app.post("/api/tmdb/check-key", async (req, res) => {
+  try {
+    const { apiKey } = req.body || {};
+    const result = await validateTmdbKey(apiKey);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ valid: false, message: err?.message || "Gagal memverifikasi API Key" });
+  }
+});
+
+// TMDB Key save (saves in memory and activates immediately)
+app.post("/api/tmdb/save-key", async (req, res) => {
+  try {
+    const { apiKey } = req.body || {};
+    if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
+      return res.status(400).json({ success: false, message: "API Key tidak boleh kosong" });
+    }
+
+    const test = await validateTmdbKey(apiKey.trim());
+    if (!test.valid) {
+      return res.status(400).json({ success: false, message: test.message });
+    }
+
+    setCustomApiKey(apiKey.trim());
+    res.json({
+      success: true,
+      message: "API Key TMDB berhasil disimpan dan aktif!",
+      maskedKey: getMaskedKey(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err?.message || "Gagal menyimpan API Key" });
+  }
+});
+
+// TMDB Key clear
+app.post("/api/tmdb/clear-key", (_req, res) => {
+  setCustomApiKey(null);
+  res.json({
+    success: true,
+    message: "Kunci TMDB berhasil direset.",
+    configured: isTmdbConfigured(),
+    maskedKey: getMaskedKey(),
   });
 });
 
 // TMDB Primary Feed: aggregates trending, popular movies, and popular series
-app.get("/api/tmdb/feed", async (req, res) => {
+app.get("/api/tmdb/feed", async (_req, res) => {
   try {
-    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
+    if (!isTmdbConfigured()) {
       return res.json({
         configured: false,
         message: "TMDB_API_KEY is not configured in environment.",
@@ -116,7 +160,7 @@ app.get("/api/tmdb/feed", async (req, res) => {
   } catch (error: any) {
     console.error("TMDB feed error:", error);
     return res.status(500).json({
-      configured: isTmdbConfigured(req.header('X-TMDB-API-Key')),
+      configured: isTmdbConfigured(),
       error: "Failed to fetch TMDB feed",
       details: error?.message || "Unknown error",
     });
@@ -126,7 +170,7 @@ app.get("/api/tmdb/feed", async (req, res) => {
 // TMDB Movies listing endpoint (with category and genre support)
 app.get("/api/tmdb/movies", async (req, res) => {
   try {
-    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
+    if (!isTmdbConfigured()) {
       return res.json({ configured: false, results: [], total_pages: 0 });
     }
 
@@ -164,7 +208,7 @@ app.get("/api/tmdb/movies", async (req, res) => {
 // TMDB Series listing endpoint (with category and genre support)
 app.get("/api/tmdb/series", async (req, res) => {
   try {
-    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
+    if (!isTmdbConfigured()) {
       return res.json({ configured: false, results: [], total_pages: 0 });
     }
 
@@ -202,7 +246,7 @@ app.get("/api/tmdb/series", async (req, res) => {
 // TMDB Search endpoint
 app.get("/api/tmdb/search", async (req, res) => {
   try {
-    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
+    if (!isTmdbConfigured()) {
       return res.json({ configured: false, results: [], total_pages: 0 });
     }
 
@@ -238,7 +282,7 @@ app.get("/api/tmdb/search", async (req, res) => {
 // TMDB Single Item Detail with full append_to_response (credits, videos, watch providers, certifications)
 app.get("/api/tmdb/item/:type/:id", async (req, res) => {
   try {
-    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
+    if (!isTmdbConfigured()) {
       return res.status(400).json({ error: "TMDB_API_KEY is not configured" });
     }
 
@@ -283,7 +327,7 @@ app.get("/api/tmdb/item/:type/:id", async (req, res) => {
 // TMDB TV Season Episodes endpoint
 app.get("/api/tmdb/tv/:id/season/:seasonNumber", async (req, res) => {
   try {
-    if (!isTmdbConfigured(req.header('X-TMDB-API-Key'))) {
+    if (!isTmdbConfigured()) {
       return res.status(400).json({ error: "TMDB_API_KEY is not configured" });
     }
 
@@ -398,16 +442,10 @@ Known watchlist titles: ${currentWatchlist.join(", ") || 'None provided'}`;
 });
 
 async function startServer() {
-  const httpServer = http.createServer(app);
-
+  // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: {
-          server: httpServer,
-        },
-      },
+      server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
@@ -419,7 +457,7 @@ async function startServer() {
     });
   }
 
-  httpServer.listen(PORT, "0.0.0.0", () => {
+  app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }

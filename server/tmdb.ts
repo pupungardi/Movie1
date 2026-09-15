@@ -58,14 +58,7 @@ export interface MappedMediaItem {
   cast: TMDBCastMember[];
 }
 
-import { AsyncLocalStorage } from 'node:async_hooks';
-
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
-const tmdbRequestKey = new AsyncLocalStorage<string>();
-
-export function setTmdbRequestKey(apiKey: string | undefined): void {
-  if (apiKey) tmdbRequestKey.enterWith(apiKey.trim());
-}
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 const GENRE_MAP: Record<number, string> = {
@@ -119,13 +112,75 @@ export const GENRE_NAME_TO_ID: Record<string, number> = {
   'Western': 37
 };
 
-export function isTmdbConfigured(apiKey?: string): boolean {
-  const key = (apiKey ?? process.env.TMDB_API_KEY ?? '').trim();
-  return Boolean(key);
+let customApiKey: string | null = null;
+
+export function setCustomApiKey(key: string | null) {
+  customApiKey = key ? key.trim() : null;
 }
 
-function getAuth(apiKey?: string) {
-  const rawKey = (apiKey ?? tmdbRequestKey.getStore() ?? process.env.TMDB_API_KEY ?? '').trim();
+export function getEffectiveKey(): string {
+  return (customApiKey || process.env.TMDB_API_KEY || '').trim();
+}
+
+export function isTmdbConfigured(): boolean {
+  const key = getEffectiveKey();
+  return Boolean(key && key.length > 0);
+}
+
+export function getMaskedKey(): string | null {
+  const key = getEffectiveKey();
+  if (!key) return null;
+  if (key.length <= 6) return '******';
+  return `${key.slice(0, 3)}••••••••${key.slice(-3)}`;
+}
+
+export async function validateTmdbKey(keyToTest?: string): Promise<{ valid: boolean; message: string }> {
+  const key = (keyToTest !== undefined ? keyToTest : getEffectiveKey()).trim();
+  if (!key) {
+    return { valid: false, message: 'API key TMDB belum dimasukkan.' };
+  }
+
+  try {
+    const isBearer = key.startsWith('ey') || key.length > 50;
+    const testUrl = isBearer
+      ? `${TMDB_BASE_URL}/authentication`
+      : `${TMDB_BASE_URL}/authentication?api_key=${encodeURIComponent(key)}`;
+
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (isBearer) {
+      headers.Authorization = `Bearer ${key}`;
+    }
+
+    const res = await fetch(testUrl, { headers });
+    const data: any = await res.json().catch(() => ({}));
+
+    if (res.ok && data.success) {
+      return { valid: true, message: 'Berhasil terhubung ke TMDB! API Key valid.' };
+    }
+
+    // Secondary fallback test with popular movie query
+    const fallbackUrl = isBearer
+      ? `${TMDB_BASE_URL}/movie/popular?page=1`
+      : `${TMDB_BASE_URL}/movie/popular?api_key=${encodeURIComponent(key)}&page=1`;
+    const fallbackRes = await fetch(fallbackUrl, { headers });
+    if (fallbackRes.ok) {
+      return { valid: true, message: 'Berhasil terhubung ke TMDB! API Key aktif.' };
+    }
+
+    return {
+      valid: false,
+      message: data.status_message || `Kunci TMDB tidak valid (HTTP ${res.status}). Periksa kembali API key Anda.`
+    };
+  } catch (err: any) {
+    return {
+      valid: false,
+      message: `Gagal menghubungi server TMDB: ${err?.message || 'Koneksi jaringan terputus.'}`
+    };
+  }
+}
+
+function getAuth() {
+  const rawKey = getEffectiveKey();
   if (!rawKey) return null;
 
   // If provided a v4 Read Access Token (JWT)
@@ -150,8 +205,8 @@ function getAuth(apiKey?: string) {
   };
 }
 
-export async function fetchTmdb<T = any>(endpoint: string, params: Record<string, string | number> = {}, apiKey?: string): Promise<T> {
-  const auth = getAuth(apiKey);
+export async function fetchTmdb<T = any>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> {
+  const auth = getAuth();
   if (!auth) {
     throw new Error('TMDB_API_KEY is not configured in environment variables');
   }
