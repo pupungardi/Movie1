@@ -462,4 +462,17 @@ async function startServer() {
   });
 }
 
-startServer();
+// Vercel loads this file as a serverless function instead of running `app.listen`.
+// Register the static SPA fallback here so API and page requests share one entrypoint.
+if (process.env.VERCEL) {
+  const distPath = path.join(process.cwd(), "dist");
+  app.use(express.static(distPath));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+} else {
+  startServer();
+}
+
+export { app };
+export default app;
