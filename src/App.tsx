@@ -344,6 +344,16 @@ export default function App() {
             setPlayerMedia(null);
             handleOpenMedia(target, true);
           }}
+          allMedia={allMedia}
+          onSelectMedia={(selected, s = 1, ep = 1) => {
+            setPlayerMedia({ media: selected, season: s, episode: ep });
+          }}
+          isSaved={isSaved}
+          onToggleWatchlist={toggleWatchlist}
+          isFavorite={isFavorite}
+          onToggleFavorite={toggleFavorite}
+          userReview={playerMediaUserEntry?.review}
+          onSetUserReview={setUserReview}
         />
       )}
 
